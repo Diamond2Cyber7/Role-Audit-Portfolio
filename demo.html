@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Role Audit System 🚀 (Demo Ready)</title>
+
+<style>
+body { background:#121212; color:white; font-family:Arial; }
+.card { background:#1e1e1e; padding:12px; margin:15px 0; border-radius:6px; }
+.match { color:#4CAF50; }
+.missing { color:#FFC107; }
+.extra { color:#F44336; }
+.suggested { color:#00E5FF; }
+button { margin:5px; padding:6px 12px; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+</head>
+
+<body>
+
+<h1>🚀 Role Audit System</h1>
+
+<div class="card">
+<b>🔐 Demo Mode Available</b><br>
+Click "Load Demo Data" to test the tool using safe, synthetic audit data.
+</div>
+
+<button onclick="loadDemoData()">🎯 Load Demo Data</button>
+<button onclick="runWalkthrough()">📘 Show Walkthrough</button>
+
+<hr>
+
+<button onclick="runAudit()">Batch Audit</button>
+<button onclick="runSmartAudit()">Smart Audit</button>
+<button onclick="runTargetAudit()">Targeted Audit</button>
+<button onclick="exportAuditLog()">Export Audit Log</button>
+
+<p id="status"></p>
+
+<div id="walkthrough" class="card"></div>
+
+<hr>
+
+<h3>🔍 Targeted Audit Mode</h3>
+
+<input type="text" id="userSearch"
+ placeholder="Search users..."
+ onkeyup="filterUsers()"
+ style="width:300px;">
+
+<br>
+
+<select id="userSelect" size="6" multiple style="width:300px;"></select>
+
+<br><br>
+
+<div id="setupSelect"></div>
+
+<div id="targetResults"></div>
+
+<hr>
+
+<h2>Results</h2>
+<div id="results"></div>
+
+<script>
+
+let users=[], setups=[];
+let auditLog=[];
+
+// ✅ DEMO DATA
+function loadDemoData(){
+
+  users = [
+    { userId:"USER_FULL_MATCH", roles:new Set(["BOR_EP_INQUIRY","BOR_PAYMENT_REQUEST"]) },
+    { userId:"USER_MULTI_SETUP", roles:new Set(["BOR_EP_INQUIRY","BOR_PAYMENT_REQUEST","BOR_GL_INQUIRE","BOR_GL_REPORTS"]) },
+    { userId:"USER_MISSING", roles:new Set(["BOR_EP_INQUIRY"]) },
+    { userId:"USER_EXTRA", roles:new Set(["BOR_EP_INQUIRY","BOR_PAYMENT_REQUEST","BOR_ADMIN"]) }
+  ];
+
+  setups = [
+    { name:"EPRO REQUESTER", roles:new Set(["BOR_EP_INQUIRY","BOR_PAYMENT_REQUEST"]) },
+    { name:"GL ANALYST", roles:new Set(["BOR_GL_INQUIRE","BOR_GL_REPORTS"]) }
+  ];
+
+  populateSelectors();
+
+  document.getElementById("status").innerText = "✅ Demo Data Loaded";
+}
+
+// ✅ WALKTHROUGH
+function runWalkthrough(){
+
+  document.getElementById("walkthrough").innerHTML = `
+  <b>🚀 Demo Walkthrough</b><br><br>
+  ✅ 1. Click "Load Demo Data"<br>
+  ✅ 2. Click "Smart Audit"<br>
+  ✅ 3. Select USER_MULTI_SETUP<br>
+  ✅ 4. Select BOTH setups<br>
+  ✅ 5. Click "Targeted Audit"<br>
+  ✅ 6. Observe combined role validation<br>
+  ✅ 7. Export audit log<br>
+  `;
+}
+
+// =============================
+function populateSelectors(){
+
+  let u=document.getElementById("userSelect");
+  u.innerHTML="";
+
+  users.forEach(x=>{
+    let o=document.createElement("option");
+    o.value=x.userId;
+    o.text=x.userId;
+    u.appendChild(o);
+  });
+
+  let sDiv=document.getElementById("setupSelect");
+  sDiv.innerHTML="<b>Select Role Setups:</b><br>";
+
+  setups.forEach((s,i)=>{
+    sDiv.innerHTML+=`<label><input type="checkbox" value="${i}"> ${s.name}</label><br>`;
+  });
+}
+
+// =============================
+function analyze(uRoles,sRoles){
+ let matches=[],missing=[],extra=[];
+
+ sRoles.forEach(r=>{
+  uRoles.has(r)?matches.push(r):missing.push(r);
+ });
+
+ uRoles.forEach(r=>{
+  if(!sRoles.has(r)) extra.push(r);
+ });
+
+ return {matches,missing,extra};
+}
+
+// =============================
+function score(res,total){
+ return total ? Math.round((res.matches.length/total)*100) : 0;
+}
+
+// =============================
+function filterUsers(){
+ let input=document.getElementById("userSearch").value.toUpperCase();
+ let select=document.getElementById("userSelect");
+
+ select.innerHTML="";
+
+ users.filter(u=>u.userId.includes(input)).forEach(u=>{
+  let opt=document.createElement("option");
+  opt.value=u.userId;
+  opt.text=u.userId;
+  select.appendChild(opt);
+ });
+}
+
+// =============================
+function runAudit(){
+ let html="";
+ users.forEach(u=>{
+  html+=`<div class="card">${u.userId}</div>`;
+ });
+ results.innerHTML=html;
+}
+
+// =============================
+function runSmartAudit(){
+ let html="";
+ users.forEach(u=>{
+  html+=`<div class="card"><b>${u.userId}</b><br>`;
+  setups.forEach(s=>{
+    let res=analyze(u.roles,s.roles);
+    let sc=score(res,s.roles.size);
+    if(sc>=70){
+      html+=`<div class="suggested">✔ ${s.name} (${sc}%)</div>`;
+    }
+  });
+  html+=`</div>`;
+ });
+ results.innerHTML=html;
+}
+
+// =============================
+function runTargetAudit(){
+
+ let selectedUsers=[...userSelect.selectedOptions]
+   .map(o=>users.find(u=>u.userId===o.value));
+
+ let checked=[...document.querySelectorAll('#setupSelect input:checked')];
+
+ if(!selectedUsers.length||!checked.length){
+   alert("Select user & setups");
+   return;
+ }
+
+ let selectedSetups=checked.map(c=>setups[c.value]);
+
+ let combined=new Set();
+ selectedSetups.forEach(s=>s.roles.forEach(r=>combined.add(r)));
+
+ let html="";
+
+ selectedUsers.forEach(user=>{
+
+  let res=analyze(user.roles,combined);
+  let sc=score(res,combined.size);
+
+  html+=`<div class="card"><h3>${user.userId}</h3>`;
+  html+=`Score: ${sc}%`;
+
+  html+=`<br><b>MATCHED</b>`;
+  res.matches.forEach(r=>html+=`<div class="match">${r}</div>`);
+
+  html+=`<br><b>MISSING</b>`;
+  res.missing.forEach(r=>html+=`<div class="missing">${r}</div>`);
+
+  html+=`<br><b>EXTRA</b>`;
+  res.extra.forEach(r=>html+=`<div class="extra">${r}</div>`);
+
+  html+=`</div>`;
+ });
+
+ targetResults.innerHTML=html;
+}
+
+// =============================
+function exportAuditLog(){
+ let ws=XLSX.utils.json_to_sheet(auditLog);
+ let wb=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb,ws,"Audit");
+ XLSX.writeFile(wb,"Demo_Audit_Log.xlsx");
+}
+
+</script>
+
+</body>
+</html>
