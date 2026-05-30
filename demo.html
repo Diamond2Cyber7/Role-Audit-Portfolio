@@ -161,6 +161,7 @@ function filterUsers(){
 }
 
 // =============================
+// ✅ BATCH
 function runAudit(){
  let html="";
  users.forEach(u=>{
@@ -170,6 +171,7 @@ function runAudit(){
 }
 
 // =============================
+// ✅ SMART
 function runSmartAudit(){
  let html="";
  users.forEach(u=>{
@@ -187,6 +189,7 @@ function runSmartAudit(){
 }
 
 // =============================
+// ✅ TARGETED (FIXED LOGGING)
 function runTargetAudit(){
 
  let selectedUsers=[...userSelect.selectedOptions]
@@ -194,8 +197,8 @@ function runTargetAudit(){
 
  let checked=[...document.querySelectorAll('#setupSelect input:checked')];
 
- if(!selectedUsers.length||!checked.length){
-   alert("Select user & setups");
+ if(!selectedUsers.length || !checked.length){
+   alert("Select a user and at least one setup.");
    return;
  }
 
@@ -211,6 +214,16 @@ function runTargetAudit(){
   let res=analyze(user.roles,combined);
   let sc=score(res,combined.size);
 
+  // ✅ FIXED LOG ENTRY
+  auditLog.push({
+    timestamp: new Date().toLocaleString(),
+    user: user.userId,
+    score: sc,
+    matches: res.matches.join(", "),
+    missing: res.missing.join(", "),
+    extra: res.extra.join(", ")
+  });
+
   html+=`<div class="card"><h3>${user.userId}</h3>`;
   html+=`Score: ${sc}%`;
 
@@ -218,10 +231,14 @@ function runTargetAudit(){
   res.matches.forEach(r=>html+=`<div class="match">${r}</div>`);
 
   html+=`<br><b>MISSING</b>`;
-  res.missing.forEach(r=>html+=`<div class="missing">${r}</div>`);
+  res.missing.length
+    ? res.missing.forEach(r=>html+=`<div class="missing">${r}</div>`)
+    : html+=`<div class="match">None ✅</div>`;
 
   html+=`<br><b>EXTRA</b>`;
-  res.extra.forEach(r=>html+=`<div class="extra">${r}</div>`);
+  res.extra.length
+    ? res.extra.forEach(r=>html+=`<div class="extra">${r}</div>`)
+    : html+=`<div class="match">None ✅</div>`;
 
   html+=`</div>`;
  });
@@ -230,11 +247,19 @@ function runTargetAudit(){
 }
 
 // =============================
+// ✅ EXPORT (FIXED)
 function exportAuditLog(){
- let ws=XLSX.utils.json_to_sheet(auditLog);
- let wb=XLSX.utils.book_new();
- XLSX.utils.book_append_sheet(wb,ws,"Audit");
- XLSX.writeFile(wb,"Demo_Audit_Log.xlsx");
+
+ if(!auditLog.length){
+   alert("No audit logs yet.\n\nRun a Targeted Audit first.");
+   return;
+ }
+
+ let ws = XLSX.utils.json_to_sheet(auditLog);
+ let wb = XLSX.utils.book_new();
+
+ XLSX.utils.book_append_sheet(wb, ws, "Audit Log");
+ XLSX.writeFile(wb, "Demo_Audit_Log.xlsx");
 }
 
 </script>
